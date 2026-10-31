@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>nam quoc - Advanced Gaming Utility</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Font Quicksand & Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Plus Jakarta Sans', 'Quicksand', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+            touch-action: manipulation;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        input[type="text"], input[type="password"], input[type="number"], select, textarea {
+            font-size: 16px !important;
+        }
+        .modal-backdrop {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+        }
+        
+        /* Hiệu ứng chuyển tab mượt mà, không khựng */
+        .app-tab {
+            display: none;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .app-tab.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-modal-in {
+            animation: fadeInScale 0.2s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-pink-100 selection:text-pink-700">
+
+    <!-- KHU VỰC KÍCH HOẠT KEY -->
+    <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-100/95 backdrop-blur-md transition-opacity duration-300">
+        <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-xl border border-slate-100 flex flex-col items-center">
+            <div class="w-16 h-16 bg-pink-50 rounded-2xl flex items-center justify-center mb-5 text-pink-500 shadow-inner">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+            </div>
+            
+            <h2 class="text-xl font-bold text-slate-800 mb-6">Vui lòng nhập Key</h2>
+            
+            <div class="w-full relative mb-4">
+                <input type="password" id="key-input" placeholder="Nhập Key của bạn..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-base font-medium text-slate-800 focus:outline-none focus:border-pink-400 focus:bg-white transition-all pr-20">
+                <div class="absolute right-2 top-2 flex gap-1">
+                    <button onclick="pasteKey()" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-200/70 hover:bg-slate-200 rounded-xl transition-colors">Dán</button>
+                    <button onclick="toggleKeyVisibility()" id="toggle-eye-btn" class="px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors">Hiển</button>
+                </div>
+            </div>
+
+            <button onclick="verifyKey()" class="w-full bg-slate-900 hover:bg-pink-600 text-white font-semibold py-3.5 rounded-2xl shadow-md transition-all duration-200 text-sm">Xác nhận Kích hoạt</button>
+            <div id="auth-error" class="text-xs font-medium text-rose-500 mt-3 min-h-[16px] text-center"></div>
+            
+            <div class="mt-6 pt-4 border-t border-slate-100 w-full text-center">
+                <span class="text-[11px] text-slate-400">Hệ thống bảo mật nam quoc v2.6</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container" class="w-full max-w-md mx-auto flex flex-col min-h-screen pb-24 hidden">
+        <!-- HEADER -->
+        <header class="px-5 pt-4 pb-3 flex items-center justify-between border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-30">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center shadow-sm border border-pink-100">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                </div>
+                <div>
+                    <h1 class="font-bold text-slate-800 text-base leading-tight">nam quoc</h1>
+                    <span id="header-status" class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Đã kích hoạt</span>
+                </div>
+            </div>
+            <button onclick="openFormulaRunSection()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold text-xs rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Formula Run
+            </button>
+        </header>
+
+        <!-- DYNAMIC VIEWS CONTAINER -->
+        <main class="flex-1 p-4 overflow-y-auto">
+            
+            <!-- TAB 1: HOME -->
+            <section id="tab-home" class="app-tab space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div onclick="switchTab('macro')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-pink-200 transition-all cursor-pointer flex flex-col justify-between">
+                        <div class="w-10 h-10 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center mb-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">Macro</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Tạo & quản lý thao tác</p>
+                        </div>
+                    </div>
+
+                    <div onclick="switchTab('dpi')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-emerald-200 transition-all cursor-pointer flex flex-col justify-between">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">DPI & Config</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Tinh chỉnh độ nhạy</p>
+                        </div>
+                    </div>
+
+                    <div onclick="switchTab('files')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-sky-200 transition-all cursor-pointer flex flex-col justify-between">
+                        <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">Files</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Quản lý tệp hệ thống</p>
+                        </div>
+                    </div>
+
+                    <div onclick="switchTab('runfile')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-amber-200 transition-all cursor-pointer flex flex-col justify-between">
+                        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">Run File</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Tải & thực thi tệp</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Trạng thái hệ thống</h4>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                            <span class="text-slate-500">Loại tài khoản:</span>
+                            <span id="account-type-label" class="font-bold text-slate-800">Standard Key</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                            <span class="text-slate-500">Thời hạn còn lại:</span>
+                            <span id="expiry-time-label" class="font-bold text-pink-600">3 Ngày</span>
+                        </div>
+                    </div>
+                    <!-- Nút Đăng Xuất được thêm vào đây -->
+                    <div class="pt-1">
+                        <button onclick="logoutApp()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            Đăng xuất phiên bản
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: MACRO -->
+            <section id="tab-macro" class="app-tab space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Quản lý Macro</h2>
+                        <p class="text-xs text-slate-400">Tạo chuỗi thao tác tự động</p>
+                    </div>
+                    <button onclick="openCreateMacroModal()" class="px-3.5 py-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Tạo Macro
+                    </button>
+                </div>
+
+                <div id="macro-list" class="space-y-3">
+                    <!-- Dynamic macro items -->
+                </div>
+            </section>
+
+            <!-- TAB 3: DPI & CONFIG -->
+            <section id="tab-dpi" class="app-tab space-y-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">DPI & Config</h2>
+                    <p class="text-xs text-slate-400">Tinh chỉnh cấu hình và độ nhạy hệ thống nâng cao</p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-xs font-bold text-slate-700">Độ nhạy cảm ứng (Sensitivity)</label>
+                            <span id="val-sensitivity" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">1.5x</span>
+                        </div>
+                        <input type="range" min="1.0" max="3.0" step="0.1" value="1.5" oninput="updateConfigValue('sensitivity', this.value)" class="w-full accent-emerald-500 cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-xs font-bold text-slate-700">Tốc độ thao tác (Touch Speed)</label>
+                            <span id="val-speed" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">120ms</span>
+                        </div>
+                        <input type="range" min="50" max="300" step="10" value="120" oninput="updateConfigValue('speed', this.value)" class="w-full accent-emerald-500 cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-xs font-bold text-slate-700">Mô phỏng DPI Hệ thống</label>
+                            <span id="val-dpi" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">540 DPI</span>
+                        </div>
+                        <input type="range" min="400" max="900" step="10" value="540" oninput="updateConfigValue('dpi', this.value)" class="w-full accent-emerald-500 cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-xs font-bold text-slate-700">Độ trễ phản hồi (Touch Delay)</label>
+                            <span id="val-delay" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">10ms</span>
+                        </div>
+                        <input type="range" min="0" max="50" step="5" value="10" oninput="updateConfigValue('delay', this.value)" class="w-full accent-emerald-500 cursor-pointer">
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-700">Chế độ chống rung (Anti-Shake)</h4>
+                            <p class="text-[10px] text-slate-400">Làm mượt quỹ đạo cảm ứng</p>
+                        </div>
+                        <input type="checkbox" id="cfg-antishake" onchange="updateConfigCheckbox('antishake', this.checked)" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex gap-2">
+                        <button onclick="saveConfigSettings()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl text-xs transition-colors shadow-sm">Lưu Cấu Hình</button>
+                        <button onclick="exportConfigFile()" class="px-3 bg-sky-50 hover:bg-sky-100 text-sky-600 font-semibold py-2.5 rounded-xl text-xs transition-colors">Xuất File</button>
+                        <button onclick="resetConfigSettings()" class="px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2.5 rounded-xl text-xs transition-colors">Mặc định</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: FILES -->
+            <section id="tab-files" class="app-tab space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Quản lý Files</h2>
+                        <p class="text-xs text-slate-400">Định dạng .nexusmacro, .nexuscfg, .json</p>
+                    </div>
+                    <button onclick="openCreateFileModal()" class="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        Tạo File
+                    </button>
+                </div>
+
+                <div id="file-manager-list" class="space-y-2.5">
+                    <!-- Dynamic file items -->
+                </div>
+            </section>
+
+            <!-- TAB 5: RUN FILE -->
+            <section id="tab-runfile" class="app-tab space-y-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">Run File</h2>
+                    <p class="text-xs text-slate-400">Tải và thực thi các tệp tương thích</p>
+                </div>
+
+                <div id="runfile-container" class="space-y-3">
+                    <!-- Dynamic run file list -->
+                </div>
+            </section>
+
+        </main>
+
+        <!-- BOTTOM NAVIGATION BAR -->
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-md border-t border-slate-100 py-2 px-3 flex justify-around items-center z-30 shadow-lg">
+            <button onclick="switchTab('home')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-pink-500 transition-colors" data-target="home">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                <span class="text-[10px] font-semibold">Home</span>
+            </button>
+            <button onclick="switchTab('macro')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-pink-500 transition-colors" data-target="macro">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="text-[10px] font-semibold">Macro</span>
+            </button>
+            <button onclick="switchTab('dpi')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-pink-500 transition-colors" data-target="dpi">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                <span class="text-[10px] font-semibold">DPI</span>
+            </button>
+            <button onclick="switchTab('files')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-pink-500 transition-colors" data-target="files">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                <span class="text-[10px] font-semibold">Files</span>
+            </button>
+            <button onclick="switchTab('runfile')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-pink-500 transition-colors" data-target="runfile">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span class="text-[10px] font-semibold">Run File</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- MODAL TẠO FILE -->
+    <div id="create-file-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl border border-slate-100 transform scale-95 opacity-0 transition-all duration-200" id="file-modal-box">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 text-base">Tạo File Mới</h3>
+                <button onclick="closeCreateFileModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center font-bold transition-colors">×</button>
+            </div>
+            
+            <div class="space-y-3.5 mb-5">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">Tên tệp</label>
+                    <input type="text" id="new-file-name" placeholder="vd: config_pro" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-base font-medium text-slate-800 focus:outline-none focus:border-sky-400 focus:bg-white transition-all">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">Định dạng tệp</label>
+                    <select id="new-file-ext" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-base font-medium text-slate-800 focus:outline-none focus:border-sky-400 focus:bg-white transition-all">
+                        <option value=".nexusmacro">.nexusmacro (Macro)</option>
+                        <option value=".nexuscfg">.nexuscfg (Config)</option>
+                        <option value=".nexusform">.nexusform (Formula)</option>
+                        <option value=".json">.json (Data)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="confirmCreateFile()" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 rounded-2xl text-xs transition-colors shadow-sm">Tạo</button>
+                <button onclick="closeCreateFileModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-3 rounded-2xl text-xs transition-colors">Hủy</button>
+            </div>
+            <div id="file-modal-error" class="text-xs font-medium text-rose-500 mt-2 text-center min-h-[16px]"></div>
+        </div>
+    </div>
+
+    <!-- MODAL TẠO MACRO -->
+    <div id="create-macro-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl border border-slate-100 transform scale-95 opacity-0 transition-all duration-200" id="macro-modal-box">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 text-base">Tạo Macro Mới</h3>
+                <button onclick="closeCreateMacroModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center font-bold transition-colors">×</button>
+            </div>
+            
+            <div class="space-y-3.5 mb-5">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">Tên Macro</label>
+                    <input type="text" id="macro-name-input" placeholder="vd: Auto Tap Fast" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-base font-medium text-slate-800 focus:outline-none focus:border-pink-400 focus:bg-white transition-all">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">Loại Thao Tác</label>
+                    <select id="macro-type-input" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-base font-medium text-slate-800 focus:outline-none focus:border-pink-400 focus:bg-white transition-all">
+                        <option value="Tap">Tap (Chạm)</option>
+                        <option value="Double Tap">Double Tap (Chạm đúp)</option>
+                        <option value="Hold">Hold (Giữ)</option>
+                        <option value="Swipe">Swipe (Vuốt)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Tọa độ X, Y</label>
+                        <input type="text" id="macro-coords" value="500, 1200" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2.5 text-base font-medium text-slate-800">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1">Độ trễ (ms)</label>
+                        <input type="number" id="macro-delay" value="50" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2.5 text-base font-medium text-slate-800">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="confirmCreateMacro()" class="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-semibold py-3 rounded-2xl text-xs transition-colors shadow-sm">Lưu Macro</button>
+                <button onclick="closeCreateMacroModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-3 rounded-2xl text-xs transition-colors">Hủy</button>
+            </div>
+            <div id="macro-modal-error" class="text-xs font-medium text-rose-500 mt-2 text-center min-h-[16px]"></div>
+        </div>
+    </div>
+
+    <!-- FORMULA RUN OVERLAY -->
+    <div id="formula-run-section" class="fixed inset-0 z-40 bg-slate-50 flex flex-col max-w-md mx-auto hidden">
+        <header class="px-5 py-4 bg-white border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+            <div class="flex items-center gap-2.5">
+                <button onclick="closeFormulaRunSection()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <h2 class="font-bold text-slate-800 text-base">Formula Run</h2>
+            </div>
+            <button onclick="openCreateFormulaModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors">Tạo Công Thức</button>
+        </header>
+
+        <div class="flex-1 p-4 overflow-y-auto space-y-3">
+            <div class="bg-indigo-50 border border-indigo-100 p-3.5 rounded-2xl">
+                <p class="text-xs text-indigo-700 font-medium leading-relaxed">Khu vực độc lập chuyên chạy các công thức thuật toán (.nexusform). Chỉ thực thi khi bạn bấm chạy trực tiếp.</p>
+            </div>
+            <div id="formula-list" class="space-y-3">
+                <!-- Dynamic formula items -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TẠO CÔNG THỨC FORMULA -->
+    <div id="create-formula-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl border border-slate-100 transform scale-95 opacity-0 transition-all duration-200" id="formula-modal-box">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 text-base">Tạo Công Thức Mới</h3>
+                <button onclick="closeCreateFormulaModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center font-bold transition-colors">×</button>
+            </div>
+            
+            <div class="space-y-3.5 mb-5">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">Tên Công Thức</label>
+                    <input type="text" id="formula-name-input" placeholder="vd: Algorithmic Boost" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-base font-medium text-slate-800 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">Cấu trúc công thức / Lệnh</label>
+                    <textarea id="formula-code-input" rows="3" placeholder="vd: EXEC_ASYNC @boost_level = 9; TIMEOUT 15ms;" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-base font-medium text-slate-800 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"></textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="confirmCreateFormula()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-2xl text-xs transition-colors shadow-sm">Lưu Công Thức</button>
+                <button onclick="closeCreateFormulaModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-3 rounded-2xl text-xs transition-colors">Hủy</button>
+            </div>
+            <div id="formula-modal-error" class="text-xs font-medium text-rose-500 mt-2 text-center min-h-[16px]"></div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const VALID_KEYS = {
+            "ADMIN-NQ-2026-KEY": { type: "admin", expiry: null },
+            "NQ-USER-01-A8F2": { type: "user", expiryDays: 3 },
+            "NQ-USER-02-B9K4": { type: "user", expiryDays: 3 },
+            "NQ-USER-03-C3M7": { type: "user", expiryDays: 3 },
+            "NQ-USER-04-D4P8": { type: "user", expiryDays: 3 },
+            "NQ-USER-05-E5Q2": { type: "user", expiryDays: 3 },
+            "NQ-USER-06-F6R1": { type: "user", expiryDays: 3 },
+            "NQ-USER-07-G7S9": { type: "user", expiryDays: 3 },
+            "NQ-USER-08-H8T3": { type: "user", expiryDays: 3 },
+            "NQ-USER-09-I9U5": { type: "user", expiryDays: 3 },
+            "NQ-USER-10-J0V6": { type: "user", expiryDays: 3 },
+            "NQ-USER-11-K1W4": { type: "user", expiryDays: 3 },
+            "NQ-USER-12-L2X7": { type: "user", expiryDays: 3 },
+            "NQ-USER-13-M3Y2": { type: "user", expiryDays: 3 },
+            "NQ-USER-14-N4Z8": { type: "user", expiryDays: 3 },
+            "NQ-USER-15-O5A1": { type: "user", expiryDays: 3 },
+            "NQ-USER-16-P6B3": { type: "user", expiryDays: 3 },
+            "NQ-USER-17-Q7C5": { type: "user", expiryDays: 3 },
+            "NQ-USER-18-R8D9": { type: "user", expiryDays: 3 },
+            "NQ-USER-19-S9E2": { type: "user", expiryDays: 3 },
+            "NQ-USER-20-T0F4": { type: "user", expiryDays: 3 }
+        };
+
+        let appState = {
+            activatedKey: null,
+            keyType: null,
+            expiryDate: null,
+            macros: [
+                { id: 1, name: "Auto Tap Speed", type: "Tap", coords: "500, 1200", delay: 50 },
+                { id: 2, name: "Double Quick", type: "Double Tap", coords: "450, 1100", delay: 30 }
+            ],
+            files: [
+                { name: "default_config", ext: ".nexuscfg", size: "1.2 KB", date: "2026-10-31" },
+                { name: "rapid_tap", ext: ".nexusmacro", size: "0.8 KB", date: "2026-10-31" }
+            ],
+            formulas: [
+                { id: 1, name: "Core Boost Engine", code: "EXEC_ASYNC @level=5; TIMEOUT 10ms;" }
+            ],
+            config: {
+                sensitivity: "1.5",
+                speed: "120",
+                dpi: "540",
+                delay: "10",
+                antishake: true
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadLocalStorageData();
+            checkExistingActivation();
+        });
+
+        function loadLocalStorageData() {
+            const saved = localStorage.getItem('nam_quoc_app_data');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    appState.macros = parsed.macros || appState.macros;
+                    appState.files = parsed.files || appState.files;
+                    appState.formulas = parsed.formulas || appState.formulas;
+                    appState.config = parsed.config || appState.config;
+                    appState.activatedKey = parsed.activatedKey || null;
+                    appState.keyType = parsed.keyType || null;
+                    appState.expiryDate = parsed.expiryDate || null;
+                } catch(e) { console.error(e); }
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('nam_quoc_app_data', JSON.stringify(appState));
+        }
+
+        function checkExistingActivation() {
+            if (appState.activatedKey) {
+                document.getElementById('auth-screen').classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => document.getElementById('auth-screen').style.display = 'none', 300);
+                document.getElementById('app-container').classList.remove('hidden');
+                updateAccountDisplay();
+                switchTab('home');
+                renderAllLists();
+            }
+        }
+
+        function toggleKeyVisibility() {
+            const input = document.getElementById('key-input');
+            const btn = document.getElementById('toggle-eye-btn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Ẩn';
+            } else {
+                input.type = 'password';
+                btn.textContent = 'Hiển';
+            }
+        }
+
+        async function pasteKey() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('key-input').value = text;
+            } catch (err) {
+                showAuthError("Không thể đọc bộ nhớ tạm. Vui lòng dán thủ công.");
+            }
+        }
+
+        function showAuthError(msg) {
+            document.getElementById('auth-error').textContent = msg;
+        }
+
+        function verifyKey() {
+            let keyVal = document.getElementById('key-input').value.trim();
+            keyVal = keyVal.replace(/[–—]/g, '-').toUpperCase();
+
+            if (!keyVal) {
+                showAuthError("Vui lòng nhập khóa kích hoạt hợp lệ.");
+                return;
+            }
+
+            if (VALID_KEYS[keyVal]) {
+                const keyInfo = VALID_KEYS[keyVal];
+                appState.activatedKey = keyVal;
+                appState.keyType = keyInfo.type;
+                
+                if (keyInfo.type === 'admin') {
+                    appState.expiryDate = 'Vĩnh viễn (Admin)';
+                } else {
+                    const expiry = new Date();
+                    expiry.setDate(expiry.getDate() + 3);
+                    appState.expiryDate = expiry.toLocaleDateString('vi-VN');
+                }
+
+                saveToLocalStorage();
+                
+                const authScreen = document.getElementById('auth-screen');
+                authScreen.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => {
+                    authScreen.style.display = 'none';
+                    document.getElementById('app-container').classList.remove('hidden');
+                    updateAccountDisplay();
+                    switchTab('home');
+                    renderAllLists();
+                }, 300);
+            } else {
+                showAuthError("Key không hợp lệ hoặc đã hết hạn sử dụng.");
+            }
+        }
+
+        // Chức năng Đăng xuất phiên bản
+        function logoutApp() {
+            if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi phiên bản này không?")) {
+                appState.activatedKey = null;
+                appState.keyType = null;
+                appState.expiryDate = null;
+                saveToLocalStorage();
+                
+                // Hiện lại màn hình nhập Key
+                const authScreen = document.getElementById('auth-screen');
+                authScreen.style.display = 'flex';
+                setTimeout(() => authScreen.classList.remove('opacity-0', 'pointer-events-none'), 10);
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('key-input').value = '';
+                document.getElementById('auth-error').textContent = '';
+            }
+        }
+
+        function updateAccountDisplay() {
+            const typeLabel = document.getElementById('account-type-label');
+            const expiryLabel = document.getElementById('expiry-time-label');
+            if (appState.keyType === 'admin') {
+                typeLabel.textContent = 'Admin Key';
+                expiryLabel.textContent = 'Không giới hạn';
+            } else {
+                typeLabel.textContent = 'Standard Key';
+                expiryLabel.textContent = appState.expiryDate || '3 Ngày';
+            }
+        }
+
+        // Chuyển tab cực mượt mà với CSS transition
+        function switchTab(tabName) {
+            document.querySelectorAll('.app-tab').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(`tab-${tabName}`);
+            if (target) {
+                target.classList.add('active');
+            }
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.getAttribute('data-target') === tabName) {
+                    btn.classList.add('text-pink-500');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('text-pink-500');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function renderAllLists() {
+            renderMacros();
+            renderFiles();
+            renderRunFiles();
+            renderFormulas();
+            renderConfigValues();
+        }
+
+        // --- MACRO MODULE ---
+        function renderMacros() {
+            const container = document.getElementById('macro-list');
+            if (appState.macros.length === 0) {
+                container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-100 text-center"><p class="text-xs text-slate-400">Chưa có Macro nào được tạo.</p></div>`;
+                return;
+            }
+            container.innerHTML = appState.macros.map(m => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${m.name}</h4>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[10px] bg-pink-50 text-pink-600 font-semibold px-2 py-0.5 rounded-md">${m.type}</span>
+                            <span class="text-[10px] text-slate-400">Tọa độ: ${m.coords} | ${m.delay}ms</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="executeMacro(${m.id})" class="px-3 py-1.5 bg-pink-500 hover:bg-pink-600 text-white font-semibold text-xs rounded-xl shadow-sm transition-colors">Chạy</button>
+                        <button onclick="deleteMacro(${m.id})" class="w-8 h-8 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl flex items-center justify-center transition-colors">×</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openCreateMacroModal() {
+            const modal = document.getElementById('create-macro-modal');
+            const box = document.getElementById('macro-modal-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('scale-95', 'opacity-0');
+                box.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeCreateMacroModal() {
+            const modal = document.getElementById('create-macro-modal');
+            const box = document.getElementById('macro-modal-box');
+            box.classList.remove('scale-100', 'opacity-100');
+            box.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+
+        function confirmCreateMacro() {
+            const name = document.getElementById('macro-name-input').value.trim();
+            const type = document.getElementById('macro-type-input').value;
+            const coords = document.getElementById('macro-coords').value.trim();
+            const delay = parseInt(document.getElementById('macro-delay').value) || 50;
+            const errEl = document.getElementById('macro-modal-error');
+
+            if (!name) {
+                errEl.textContent = "Vui lòng nhập tên Macro.";
+                return;
+            }
+
+            const newMacro = { id: Date.now(), name, type, coords, delay };
+            appState.macros.push(newMacro);
+            saveToLocalStorage();
+            renderMacros();
+            closeCreateMacroModal();
+            document.getElementById('macro-name-input').value = '';
+            errEl.textContent = '';
+        }
+
+        function executeMacro(id) {
+            const m = appState.macros.find(x => x.id === id);
+            if (m) {
+                alert(`Đang thực thi Macro [${m.name}] thành công với độ trễ ${m.delay}ms.`);
+            }
+        }
+
+        function deleteMacro(id) {
+            appState.macros = appState.macros.filter(x => x.id !== id);
+            saveToLocalStorage();
+            renderMacros();
+        }
+
+        // --- DPI & CONFIG MODULE ---
+        function updateConfigValue(key, val) {
+            appState.config[key] = val;
+            renderConfigValues();
+        }
+
+        function updateConfigCheckbox(key, val) {
+            appState.config[key] = val;
+            saveToLocalStorage();
+        }
+
+        function renderConfigValues() {
+            document.getElementById('val-sensitivity').textContent = appState.config.sensitivity + 'x';
+            document.getElementById('val-speed').textContent = appState.config.speed + 'ms';
+            document.getElementById('val-dpi').textContent = appState.config.dpi + ' DPI';
+            document.getElementById('val-delay').textContent = appState.config.delay + 'ms';
+            document.getElementById('cfg-antishake').checked = !!appState.config.antishake;
+        }
+
+        function saveConfigSettings() {
+            saveToLocalStorage();
+            alert("Đã lưu cấu hình và áp dụng thành công.");
+        }
+
+        function exportConfigFile() {
+            const configData = JSON.stringify(appState.config, null, 2);
+            const blob = new Blob([configData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `namquoc_config_${Date.now()}.nexuscfg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function resetConfigSettings() {
+            appState.config = { sensitivity: "1.5", speed: "120", dpi: "540", delay: "10", antishake: true };
+            saveToLocalStorage();
+            renderConfigValues();
+            alert("Đã khôi phục cấu hình mặc định.");
+        }
+
+        // --- FILES MODULE ---
+        function renderFiles() {
+            const container = document.getElementById('file-manager-list');
+            if (appState.files.length === 0) {
+                container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-100 text-center"><p class="text-xs text-slate-400">Không có tệp nào trong bộ nhớ.</p></div>`;
+                return;
+            }
+            container.innerHTML = appState.files.map((f, idx) => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-xs">
+                            ${f.ext.replace('.', '').toUpperCase().substring(0, 3)}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">${f.name}${f.ext}</h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">${f.size} • ${f.date}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="deleteFile(${idx})" class="w-8 h-8 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl flex items-center justify-center transition-colors">×</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openCreateFileModal() {
+            const modal = document.getElementById('create-file-modal');
+            const box = document.getElementById('file-modal-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('scale-95', 'opacity-0');
+                box.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeCreateFileModal() {
+            const modal = document.getElementById('create-file-modal');
+            const box = document.getElementById('file-modal-box');
+            box.classList.remove('scale-100', 'opacity-100');
+            box.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+
+        function confirmCreateFile() {
+            const nameInput = document.getElementById('new-file-name');
+            const extInput = document.getElementById('new-file-ext');
+            const errEl = document.getElementById('file-modal-error');
+            const name = nameInput.value.trim();
+            const ext = extInput.value;
+
+            if (!name) {
+                errEl.textContent = "Vui lòng nhập tên tệp.";
+                return;
+            }
+
+            const exists = appState.files.some(f => f.name === name && f.ext === ext);
+            if (exists) {
+                errEl.textContent = "Tên tệp đã tồn tại trong hệ thống.";
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            appState.files.push({ name, ext, size: '0.5 KB', date: today });
+            saveToLocalStorage();
+            renderFiles();
+            renderRunFiles();
+            closeCreateFileModal();
+            nameInput.value = '';
+            errEl.textContent = '';
+        }
+
+        function deleteFile(index) {
+            appState.files.splice(index, 1);
+            saveToLocalStorage();
+            renderFiles();
+            renderRunFiles();
+        }
+
+        // --- RUN FILE MODULE ---
+        function renderRunFiles() {
+            const container = document.getElementById('runfile-container');
+            if (appState.files.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 text-center space-y-3">
+                        <p class="text-xs text-slate-400">Chưa có tệp nào khả dụng để chạy.</p>
+                        <button onclick="switchTab('files')" class="px-4 py-2 bg-sky-500 text-white font-semibold text-xs rounded-xl shadow-sm">Đến Quản Lý Files</button>
+                    </div>`;
+                return;
+            }
+            container.innerHTML = appState.files.map((f, idx) => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${f.name}${f.ext}</h4>
+                        <span class="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md mt-1 inline-block">Sẵn sàng chạy</span>
+                    </div>
+                    <button onclick="runSpecificFile('${f.name}${f.ext}')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs rounded-xl shadow-sm transition-colors">Thực thi</button>
+                </div>
+            `).join('');
+        }
+
+        function runSpecificFile(fileName) {
+            alert(`Đã tải và thực thi tệp [${fileName}] thành công.`);
+        }
+
+        // --- FORMULA RUN MODULE ---
+        function openFormulaRunSection() {
+            document.getElementById('formula-run-section').classList.remove('hidden');
+            renderFormulas();
+        }
+
+        function closeFormulaRunSection() {
+            document.getElementById('formula-run-section').classList.add('hidden');
+        }
+
+        function renderFormulas() {
+            const container = document.getElementById('formula-list');
+            if (appState.formulas.length === 0) {
+                container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-100 text-center"><p class="text-xs text-slate-400">Chưa có công thức nào.</p></div>`;
+                return;
+            }
+            container.innerHTML = appState.formulas.map(f => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${f.name}</h4>
+                        <p class="text-[10px] text-slate-400 mt-0.5 font-mono">${f.code}</p>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="executeFormula(${f.id})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-colors">Chạy</button>
+                        <button onclick="deleteFormula(${f.id})" class="w-8 h-8 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl flex items-center justify-center transition-colors">×</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openCreateFormulaModal() {
+            const modal = document.getElementById('create-formula-modal');
+            const box = document.getElementById('formula-modal-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('scale-95', 'opacity-0');
+                box.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeCreateFormulaModal() {
+            const modal = document.getElementById('create-formula-modal');
+            const box = document.getElementById('formula-modal-box');
+            box.classList.remove('scale-100', 'opacity-100');
+            box.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+
+        function confirmCreateFormula() {
+            const name = document.getElementById('formula-name-input').value.trim();
+            const code = document.getElementById('formula-code-input').value.trim();
+            const errEl = document.getElementById('formula-modal-error');
+
+            if (!name || !code) {
+                errEl.textContent = "Vui lòng nhập đầy đủ tên và công thức.";
+                return;
+            }
+
+            appState.formulas.push({ id: Date.now(), name, code });
+            saveToLocalStorage();
+            renderFormulas();
+            closeCreateFormulaModal();
+            document.getElementById('formula-name-input').value = '';
+            document.getElementById('formula-code-input').value = '';
+            errEl.textContent = '';
+        }
+
+        function executeFormula(id) {
+            const f = appState.formulas.find(x => x.id === id);
+            if (f) {
+                alert(`Công thức [${f.name}] đã được thực thi thành công.`);
+            }
+        }
+
+        function deleteFormula(id) {
+            appState.formulas = appState.formulas.filter(x => x.id !== id);
+            saveToLocalStorage();
+            renderFormulas();
+        }
+    </script>
+</body>
+</html>
